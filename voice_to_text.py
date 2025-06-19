@@ -1,7 +1,8 @@
 import base64
 import requests
-from typing import Dict, Any
 import json
+from typing import Dict, Any
+from src.request_manager import RequestManager
 
 class VoiceToTextConverter:
     SUPPORTED_LANGUAGES = {
@@ -31,6 +32,7 @@ class VoiceToTextConverter:
 
     def __init__(self):
         self.API_URL = 'https://admin.models.ai4bharat.org/inference/transcribe'
+        self.request_manager = RequestManager(num_proxies=5, timeout=30)
 
     def is_language_supported(self, language_code: str) -> bool:
         """Check if the language code is supported."""
@@ -64,15 +66,15 @@ class VoiceToTextConverter:
                 "postProcessors": []
             }
 
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json, text/plain, */*',
-                'Origin': 'https://ai4bharat.iitm.ac.in',
-                'Referer': 'https://ai4bharat.iitm.ac.in/',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+            base_headers = {
+                'Content-Type': 'application/json'
             }
 
-            response = requests.post(self.API_URL, json=payload, headers=headers)
+            response = self.request_manager.post(
+                url=self.API_URL,
+                base_headers=base_headers,
+                json=payload
+            )
             response.raise_for_status()
             return response.json()
 

@@ -4,7 +4,6 @@ import time
 from typing import List, Dict, Optional
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ProxyManager:
@@ -28,7 +27,7 @@ class ProxyManager:
                     new_proxies = response.text.strip().split('\n')
                     new_proxies = [p.strip() for p in new_proxies if p.strip()]
                     proxies.update(new_proxies)
-                    logger.info(f"Fetched {len(new_proxies)} proxies from {url}")
+                    logger.debug(f"Fetched {len(new_proxies)} proxies from {url}")
             except Exception as e:
                 logger.error(f"Error fetching proxies from {url}: {str(e)}")
         
@@ -72,7 +71,7 @@ class ProxyManager:
             List[Dict]: List of working proxies with their speeds, sorted fastest first
         """
         proxies = self.fetch_proxies()
-        logger.info(f"Testing {len(proxies)} proxies...")
+        logger.debug(f"Testing {len(proxies)} proxies...")
         working_proxies = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -85,12 +84,12 @@ class ProxyManager:
                 result = future.result()
                 if result:
                     working_proxies.append(result)
-                    logger.info(f"Found working proxy: {result['proxy']} (Speed: {result['speed']:.2f}s)")
+                    logger.debug(f"Found working proxy: {result['proxy']} (Speed: {result['speed']:.2f}s)")
 
         # Sort proxies by speed
         working_proxies.sort(key=lambda x: x['speed'])
         
-        logger.info(f"Found {len(working_proxies)} working proxies")
+        logger.debug(f"Found {len(working_proxies)} working proxies")
         return working_proxies
 
 def get_fast_proxies(limit: int = 10) -> List[Dict]:
