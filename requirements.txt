@@ -1,0 +1,7 @@
+gradio>=5.25.2
+scipy>=1.15.3
+requests>=2.31.0
+anuvaad_rev>=0.1.2
+gradio_client>=1.8.0
+pydub>=0.25.1
+numpy>=1.24.4

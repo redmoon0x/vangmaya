@@ -4,7 +4,10 @@ from typing import Dict, List, Any
 class TextTranslator:
     def __init__(self):
         """Initialize the translator with IndicTranslator."""
-        self.translator = IndicTranslator()
+        self.translator = IndicTranslator(
+    max_retries=3,              # Number of retries for failed requests
+    session_refresh_interval=3600  # Refresh session every hour
+)
     
     def translate(self, text: str, target_lang: str) -> str:
         """
