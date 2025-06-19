@@ -32,7 +32,7 @@ class TextTranslator:
     def __init__(self):
         """Initialize the translator with request manager."""
         self.API_URL = 'https://admin.models.ai4bharat.org/inference/translate'
-        self.request_manager = RequestManager(num_proxies=5, timeout=30)
+        self.request_manager = RequestManager(timeout=15)  # Shorter timeout for translation
     
     def is_language_supported(self, language_code: str) -> bool:
         """Check if the language code is supported."""
@@ -73,11 +73,15 @@ class TextTranslator:
                 'Content-Type': 'application/json'
             }
 
+            print("\nAttempting translation...")
+            print("This may take a few attempts with different proxies...")
             response = self.request_manager.post(
                 url=self.API_URL,
                 base_headers=base_headers,
-                json=payload
+                json=payload,
+                timeout=15  # Moderate timeout for translation
             )
+            print("Translation successful!")
             response.raise_for_status()
             result = response.json()
             

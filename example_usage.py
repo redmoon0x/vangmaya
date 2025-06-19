@@ -1,7 +1,20 @@
 import os
+import time
+import logging
 from pathlib import Path
+import numpy as np
 from audio_translation_pipeline import AudioTranslationPipeline
+import scipy.io.wavfile as wav
 import shutil
+
+# Ensure uploads directory exists
+os.makedirs('uploads', exist_ok=True)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 def ensure_uploads_directory():
     """Create uploads directory if it doesn't exist."""
@@ -27,8 +40,9 @@ def copy_audio_file(source_path):
 
 def main():
     try:
-        # Initialize the pipeline
+        print("Initializing pipeline with proxy support...")
         pipeline = AudioTranslationPipeline()
+        print("Pipeline initialized successfully.")
         
         # Show available languages
         print("\nAvailable Languages:")
@@ -47,11 +61,13 @@ def main():
             print("\nProcessing audio file...")
             print("-" * 30)
             
-            # Process the audio file (example with Hindi to English)
+            # Process the audio file (example with Kannada to Hindi)
+            print("\nProcessing audio with proxies...")
+            print("This may take a moment as we test and rotate proxies...")
             result = pipeline.process(
                 audio_file_path=upload_path,
-                source_lang="kn",    # Hindi audio
-                target_lang="hi"     # Translate to English
+                source_lang="kn",    # Kannada audio
+                target_lang="hi"     # Translate to Hindi
             )
             
             # Print results
@@ -62,6 +78,17 @@ def main():
             print("-" * 50)
             print(f"Target Language: {result['target_language']}")
             print(f"Translated Text: {result['translated_text']}")
+
+            try:
+                # Save the generated audio
+                output_filename = f"output_{int(time.time())}.wav"
+                output_path = os.path.join("uploads", output_filename)
+                print("\nSaving generated audio...")
+                audio_array = np.array(result['audio_data'], dtype=np.float32)
+                wav.write(output_path, 22050, audio_array)
+                print(f"Generated audio saved to: {output_path}")
+            except Exception as e:
+                print(f"\nError saving audio file: {str(e)}")
             
         except FileNotFoundError as e:
             print(f"\nError: {str(e)}")

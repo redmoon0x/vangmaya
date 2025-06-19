@@ -1,8 +1,11 @@
 import base64
 import requests
 import json
+import logging
 from typing import Dict, Any
 from src.request_manager import RequestManager
+
+logger = logging.getLogger(__name__)
 
 class VoiceToTextConverter:
     SUPPORTED_LANGUAGES = {
@@ -31,12 +34,11 @@ class VoiceToTextConverter:
     }
 
     def __init__(self):
+        """Initialize the converter with request manager optimized for audio processing."""
         self.API_URL = 'https://admin.models.ai4bharat.org/inference/transcribe'
-        # Initialize request manager with settings optimized for large audio uploads
+        logger.info("Initializing VoiceToTextConverter...")
         self.request_manager = RequestManager(
-            num_proxies=5,             # Larger pool for audio uploads
-            timeout=30,                # Longer timeout for audio processing
-            max_requests_per_proxy=10  # More frequent rotation for stability
+            timeout=30  # Longer timeout for audio processing
         )
         # Initialize empty cache for frequently used audio
         self.result_cache = {}
@@ -64,7 +66,10 @@ class VoiceToTextConverter:
             return self.result_cache[cache_key]
 
         try:
+            logger.info(f"Processing audio file: {audio_file_path}")
+            logger.info(f"Converting audio to base64...")
             audio_content = self.convert_audio_to_base64(audio_file_path)
+            logger.info(f"Audio conversion successful, sending to API...")
 
             payload = {
                 "audioContent": audio_content,
@@ -85,11 +90,15 @@ class VoiceToTextConverter:
                 'Connection': 'keep-alive'
             }
 
+            print("\nAttempting to transcribe audio...")
+            print("This may take a few attempts with different proxies...")
             response = self.request_manager.post(
                 url=self.API_URL,
                 base_headers=base_headers,
-                json=payload
+                json=payload,
+                timeout=30  # Longer timeout for audio processing
             )
+            print("Transcription successful!")
             response.raise_for_status()
             result = response.json()
             
