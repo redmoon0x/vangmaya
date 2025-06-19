@@ -45,7 +45,8 @@ class ProxyManager:
             response = requests.get(
                 self.test_url,
                 proxies=proxies,
-                timeout=self.timeout
+                timeout=self.timeout,
+                verify=False
             )
             speed = time.time() - start_time
             

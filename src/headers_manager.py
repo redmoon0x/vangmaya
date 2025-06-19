@@ -46,18 +46,23 @@ class HeadersManager:
         headers = base_headers.copy() if base_headers else {}
         
         # Add or update random headers
+        origin = self.get_random_origin()
         headers.update({
-            'Origin': self.get_random_origin(),
-            'Accept-Language': self.get_random_accept_language(),
-            'Referer': f"{self.get_random_origin()}/",
-            'Accept': 'application/json, text/plain, */*',
-            'DNT': '1',  # Do Not Track
-            'Connection': 'keep-alive',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-site',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache'
+            'authority': 'admin.models.ai4bharat.org',
+            'accept': 'application/json, text/plain, */*',
+            'accept-encoding': 'gzip, deflate, br, zstd',
+            'accept-language': self.get_random_accept_language(),
+            'content-type': 'application/json',
+            'origin': origin,
+            'priority': 'u=1, i',
+            'referer': f"{origin}/",
+            'sec-ch-ua': '"Brave";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'cross-site',
+            'sec-gpc': '1'
         })
 
         self._current_headers = headers

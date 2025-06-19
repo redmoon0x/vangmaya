@@ -32,7 +32,14 @@ class VoiceToTextConverter:
 
     def __init__(self):
         self.API_URL = 'https://admin.models.ai4bharat.org/inference/transcribe'
-        self.request_manager = RequestManager(num_proxies=5, timeout=30)
+        # Initialize request manager with settings optimized for large audio uploads
+        self.request_manager = RequestManager(
+            num_proxies=5,             # Larger pool for audio uploads
+            timeout=30,                # Longer timeout for audio processing
+            max_requests_per_proxy=10  # More frequent rotation for stability
+        )
+        # Initialize empty cache for frequently used audio
+        self.result_cache = {}
 
     def is_language_supported(self, language_code: str) -> bool:
         """Check if the language code is supported."""
@@ -51,6 +58,11 @@ class VoiceToTextConverter:
         if not self.is_language_supported(source_language):
             raise ValueError(f"Language {source_language} is not supported")
 
+        # Check cache first
+        cache_key = f"{audio_file_path}:{source_language}"
+        if cache_key in self.result_cache:
+            return self.result_cache[cache_key]
+
         try:
             audio_content = self.convert_audio_to_base64(audio_file_path)
 
@@ -66,8 +78,11 @@ class VoiceToTextConverter:
                 "postProcessors": []
             }
 
+            # Headers optimized for audio upload
             base_headers = {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Connection': 'keep-alive'
             }
 
             response = self.request_manager.post(
@@ -76,7 +91,12 @@ class VoiceToTextConverter:
                 json=payload
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            
+            # Cache successful results
+            self.result_cache[cache_key] = result
+            
+            return result
 
         except requests.exceptions.RequestException as e:
             if hasattr(e.response, 'text'):
