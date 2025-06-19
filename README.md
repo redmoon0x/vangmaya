@@ -1,91 +1,142 @@
-# Voice and Text Translation System
+# Audio Translation Pipeline
 
-A robust system for voice-to-text conversion and text translation with built-in proxy rotation and header management.
+A Python pipeline that converts audio to text and then translates it to the desired language. This pipeline combines voice recognition and translation capabilities to process audio files in multiple Indian languages.
 
 ## Features
 
-### Core Functionality
-- Voice to Text conversion
-- Text translation between multiple Indian languages
-- Support for 22+ languages
+- Voice to text conversion for multiple Indian languages
+- Text translation between supported languages
+- Robust error handling and logging
+- Simple and intuitive API
 
-### Request Management
-- Automatic proxy rotation
-- Dynamic header generation
-- User agent rotation
-- Multiple origin support
+## Prerequisites
 
-## Project Structure
+- Python 3.8 or higher
+- `pip` package manager
 
-```
-├── src/
-│   ├── proxy_manager.py      # Proxy fetching and testing
-│   ├── request_manager.py    # Request handling with rotation
-│   ├── headers_manager.py    # Dynamic header generation
-│   └── user_agent_rotator.py # User agent rotation
-├── voice_to_text.py         # Voice to text conversion
-├── translator.py            # Text translation
-├── requirements.txt         # Project dependencies
-└── README.md               # This file
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd <repository-name>
 ```
 
-## Setup
+2. Create a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-1. Install dependencies:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Usage example:
+## Project Structure
+
+```
+.
+├── src/
+│   ├── headers_manager.py
+│   ├── proxy_manager.py
+│   ├── request_manager.py
+│   └── user_agent_rotator.py
+├── uploads/               # Directory for audio files
+├── audio_translation_pipeline.py
+├── voice_to_text.py
+├── translator.py
+├── example_usage.py
+└── requirements.txt
+```
+
+## Usage
+
+1. Place your audio file in the project directory or specify its path.
+
+2. Use the pipeline in your Python code:
 
 ```python
-# Voice to Text
-from voice_to_text import VoiceToTextConverter
+from audio_translation_pipeline import AudioTranslationPipeline
 
-converter = VoiceToTextConverter()
-result = converter.transcribe("audio_file.mp3", "hi")  # Hindi transcription
+# Initialize the pipeline
+pipeline = AudioTranslationPipeline()
 
-# Translation
-from translator import TextTranslator
-
-translator = TextTranslator()
-result = translator.translate(
-    text="Hello, how are you?",
-    target_lang="hi",  # Hindi
-    source_lang="en"   # English
+# Process an audio file
+result = pipeline.process(
+    audio_file_path="path/to/your/audio.mp3",
+    source_lang="hi",  # Source language code
+    target_lang="en"   # Target language code
 )
+
+# Print results
+print(f"Original Text: {result['original_text']}")
+print(f"Translated Text: {result['translated_text']}")
+```
+
+3. Or run the example script:
+```bash
+python example_usage.py
 ```
 
 ## Supported Languages
 
-Both voice-to-text and translation support a wide range of Indian languages:
+The pipeline supports the following languages (codes in brackets):
 
 - Hindi (hi)
+- English (en)
+- Marathi (mr)
 - Bengali (bn)
 - Gujarati (gu)
 - Kannada (kn)
 - Malayalam (ml)
-- Marathi (mr)
+- Odia (or)
 - Punjabi (pa)
 - Tamil (ta)
 - Telugu (te)
-- And many more...
+- And more...
 
-## Features
+Use `get_supported_languages()` to see the complete list of supported languages:
 
-### Request Management
-- Automatic proxy rotation with speed testing
-- Proxy failover and retry logic
-- HTTP/HTTPS support with SSL handling
+```python
+pipeline = AudioTranslationPipeline()
+languages = pipeline.get_supported_languages()
+for code, name in languages.items():
+    print(f"{code}: {name}")
+```
 
-### Header Management
-- Dynamic header generation
-- Multiple origin domains
-- Randomized accept-language headers
-- Secure header configuration
+## Error Handling
 
-### Performance
-- Proxy speed testing and ranking
-- Fast proxy reuse
-- Connection pooling
-- Automatic retry on failure
+The pipeline includes comprehensive error handling for:
+- Invalid language codes
+- Missing audio files
+- Network connectivity issues
+- API service availability
+- Invalid audio formats
+
+Errors are logged with detailed messages to help diagnose issues.
+
+## Testing
+
+Run the test suite:
+```bash
+python -m unittest test_audio_translation_pipeline.py
+```
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check that your audio file exists and is in a supported format
+2. Verify that the source and target languages are supported
+3. Ensure you have an active internet connection
+4. Check the logs for detailed error messages
+5. Make sure all dependencies are installed correctly
+
+## Contributing
+
+Feel free to open issues or submit pull requests for improvements.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

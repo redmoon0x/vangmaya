@@ -1,8 +1,10 @@
 import requests
 import concurrent.futures
 import time
+import asyncio
 from typing import List, Dict, Optional
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
 
@@ -13,23 +15,44 @@ class ProxyManager:
             'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all'
         ]
         self.test_url = 'http://httpbin.org/get'  # URL to test proxies
-        self.timeout = 10  # Timeout in seconds for proxy tests
+        self.timeout = 5  # Reduced timeout for faster testing
+        self.max_workers = 20  # Maximum number of concurrent workers
 
-    def fetch_proxies(self) -> List[str]:
-        """Fetch proxies from all sources and return as a list."""
-        proxies = set()
-        
-        for url in self.proxy_urls:
-            try:
-                response = requests.get(url, timeout=self.timeout)
+    async def fetch_url(self, url: str) -> List[str]:
+        """Fetch proxies from a single URL."""
+        try:
+            async with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await asyncio.get_event_loop().run_in_executor(
+                    executor,
+                    lambda: requests.get(url, timeout=self.timeout)
+                )
                 if response.status_code == 200:
-                    # Split text into lines and clean up
                     new_proxies = response.text.strip().split('\n')
                     new_proxies = [p.strip() for p in new_proxies if p.strip()]
-                    proxies.update(new_proxies)
                     logger.debug(f"Fetched {len(new_proxies)} proxies from {url}")
-            except Exception as e:
-                logger.error(f"Error fetching proxies from {url}: {str(e)}")
+                    return new_proxies
+        except Exception as e:
+            logger.error(f"Error fetching proxies from {url}: {str(e)}")
+        return []
+
+    def fetch_proxies(self) -> List[str]:
+        """Fetch proxies from all sources concurrently."""
+        proxies = set()
+        
+        # Create event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Gather tasks
+        tasks = [self.fetch_url(url) for url in self.proxy_urls]
+        results = loop.run_until_complete(asyncio.gather(*tasks))
+        
+        # Close loop
+        loop.close()
+        
+        # Combine results
+        for proxy_list in results:
+            proxies.update(proxy_list)
         
         return list(proxies)
 
@@ -61,36 +84,45 @@ class ProxyManager:
         
         return None
 
-    def get_working_proxies(self, max_workers: int = 50) -> List[Dict]:
+    def get_working_proxies(self, max_workers: Optional[int] = None) -> List[Dict]:
         """
-        Fetch and test proxies, return working ones sorted by speed.
+        Fetch and test proxies concurrently, return working ones sorted by speed.
         
         Args:
-            max_workers (int): Maximum number of concurrent workers for testing proxies
+            max_workers (int, optional): Maximum number of concurrent workers for testing proxies.
+                                       If not provided, uses self.max_workers
             
         Returns:
             List[Dict]: List of working proxies with their speeds, sorted fastest first
         """
-        proxies = self.fetch_proxies()
-        logger.debug(f"Testing {len(proxies)} proxies...")
-        working_proxies = []
+        if max_workers is None:
+            max_workers = self.max_workers
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Fetch proxies concurrently
+        proxies = self.fetch_proxies()
+        logger.info(f"Testing {len(proxies)} proxies with {max_workers} workers...")
+        working_proxies = []
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all proxy tests
             future_to_proxy = {
                 executor.submit(self.test_proxy, proxy): proxy 
                 for proxy in proxies
             }
             
-            for future in concurrent.futures.as_completed(future_to_proxy):
+            # Process results as they complete
+            for i, future in enumerate(as_completed(future_to_proxy), 1):
                 result = future.result()
                 if result:
                     working_proxies.append(result)
-                    logger.debug(f"Found working proxy: {result['proxy']} (Speed: {result['speed']:.2f}s)")
+                    logger.info(f"Progress: {i}/{len(proxies)} - Found working proxy: {result['proxy']} (Speed: {result['speed']:.2f}s)")
+                else:
+                    logger.debug(f"Progress: {i}/{len(proxies)} - Proxy failed")
 
         # Sort proxies by speed
         working_proxies.sort(key=lambda x: x['speed'])
         
-        logger.debug(f"Found {len(working_proxies)} working proxies")
+        logger.info(f"Found {len(working_proxies)} working proxies")
         return working_proxies
 
 def get_fast_proxies(limit: int = 10) -> List[Dict]:

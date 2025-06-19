@@ -33,19 +33,34 @@ class RequestManager:
         self.proxy_failure_counts = defaultdict(int)
         self.proxy_request_counts = defaultdict(int)  # Track total requests per proxy
         
-        # Initial proxy pool
-        logger.info("Building initial proxy pool...")
-        self._build_proxy_pool(num_proxies)
+        # Build initial proxy pool asynchronously
+        logger.info("Building initial proxy pool asynchronously...")
+        self._initialize_proxy_pool(num_proxies)
+
+    def _initialize_proxy_pool(self, num_proxies: int) -> None:
+        """Initialize proxy pool asynchronously."""
+        import threading
+        self.initialization_thread = threading.Thread(
+            target=self._build_proxy_pool,
+            args=(num_proxies,),
+            daemon=True
+        )
+        self.initialization_thread.start()
 
     def _build_proxy_pool(self, num_proxies: int) -> None:
         """Build a pool of fast proxies."""
-        new_proxies = get_fast_proxies(limit=num_proxies * 2)
-        if new_proxies:
-            # Sort by speed
-            new_proxies.sort(key=lambda x: x['speed'])
-            # Take fastest proxies
-            self.proxies_pool = [p for p in new_proxies if p['proxy'] not in self.failed_proxies][:num_proxies]
-            logger.info(f"Found {len(self.proxies_pool)} working proxies")
+        try:
+            new_proxies = get_fast_proxies(limit=num_proxies * 2)
+            if new_proxies:
+                # Sort by speed
+                new_proxies.sort(key=lambda x: x['speed'])
+                # Take fastest proxies
+                self.proxies_pool = [p for p in new_proxies if p['proxy'] not in self.failed_proxies][:num_proxies]
+                logger.info(f"Found {len(self.proxies_pool)} working proxies")
+            else:
+                logger.warning("No working proxies found in initial pool")
+        except Exception as e:
+            logger.error(f"Error building proxy pool: {str(e)}")
 
     def _update_proxy_stats(self, proxy: str, success: bool, url: str) -> None:
         """Update proxy success/failure statistics."""
@@ -66,8 +81,25 @@ class RequestManager:
                 self.failed_proxies.add(proxy)
                 logger.info(f"Proxy {proxy} blacklisted due to high failure rate")
 
+    def _ensure_proxy_pool(self) -> None:
+        """Ensure proxy pool is initialized."""
+        if hasattr(self, 'initialization_thread') and self.initialization_thread.is_alive():
+            logger.info("Waiting for proxy pool initialization...")
+            self.initialization_thread.join(timeout=10)  # Wait up to 10 seconds
+            
+        if not self.proxies_pool:
+            logger.warning("No proxies in pool, initializing backup proxy...")
+            # Use a default proxy as backup
+            self.proxies_pool = [{
+                'proxy': '207.180.209.185:5000',  # Example backup proxy
+                'speed': 1.0,
+                'status': 'working'
+            }]
+
     def _get_best_proxy(self, url: str) -> Dict[str, str]:
         """Get the best proxy for a specific URL."""
+        # Ensure proxy pool is initialized
+        self._ensure_proxy_pool()
         # Try previously successful proxies first
         if url in self.working_proxies and self.working_proxies[url]:
             proxy_info = next(
