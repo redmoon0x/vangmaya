@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 for name in logging.root.manager.loggerDict:
     logging.getLogger(name).setLevel(logging.ERROR)
 
+# Set default TTS API URL
+DEFAULT_TTS_URL = "https://geometry-remembered-war-mj.trycloudflare.com/"
+os.environ['TTS_API_URL'] = os.getenv('TTS_API_URL', DEFAULT_TTS_URL)
+
 # Initialize pipeline
 pipeline = AudioTranslationPipeline()
 
