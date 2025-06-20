@@ -17,9 +17,7 @@ class AudioTranslationPipeline:
         try:
             self.transcriber = VoiceToTextConverter()
             self.translator = TextTranslator()
-            # Initialize TTS with API URL
-            api_url = os.environ.get("TTS_API_URL")
-            self.synthesizer = TextToSpeech(api_url=api_url)
+            self.synthesizer = TextToSpeech()  # Uses HF space directly
             logger.info("Pipeline components initialized successfully")
         except Exception as e:
             logger.error("Failed to initialize pipeline components: " + str(e))
@@ -77,10 +75,10 @@ class AudioTranslationPipeline:
             while retry_count < max_retries:
                 try:
                     tts_result = self.synthesizer.generate_speech(
-                        text=translated_text,
-                        ref_audio_path=audio_file_path,  # Use input audio as reference
-                        ref_text=original_text,  # Use transcribed text as reference text
-                        output_path=output_path
+                        text=translated_text,             # Translated text to speak
+                        ref_audio_path=audio_file_path,   # Original input audio as reference
+                        ref_text=original_text,           # Original transcribed text
+                        output_path=output_path           # Where to save generated audio
                     )
                     logger.info(f"Speech generated successfully: {tts_result['file_path']}")
                     break
@@ -101,9 +99,7 @@ class AudioTranslationPipeline:
                 'original_text': original_text,
                 'translated_text': translated_text,
                 'audio_path': tts_result['file_path'],
-                'audio_data': tts_result['file_path'],  # For backward compatibility with file paths
-                'base64_audio': tts_result['base64_audio'],  # Base64 encoded audio
-                'sample_rate': tts_result['sample_rate']  # Sample rate information
+                'audio_data': tts_result['file_path']  # All we need is the file path
             }
 
         except Exception as e:

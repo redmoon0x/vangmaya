@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 for name in logging.root.manager.loggerDict:
     logging.getLogger(name).setLevel(logging.ERROR)
 
-# Set default TTS API URL
-DEFAULT_TTS_URL = "https://geometry-remembered-war-mj.trycloudflare.com/"
-os.environ['TTS_API_URL'] = os.getenv('TTS_API_URL', DEFAULT_TTS_URL)
-
 # Initialize pipeline
 pipeline = AudioTranslationPipeline()
 
@@ -35,9 +31,7 @@ LANGUAGES = {
     "Punjabi": "pa"
 }
 
-def process_audio(audio_path, source_lang, target_lang, api_url):
-    # Update the API URL
-    os.environ['TTS_API_URL'] = api_url
+def process_audio(audio_path, source_lang, target_lang):
     try:
         if audio_path is None:
             return "Please provide an audio input.", None
@@ -72,12 +66,7 @@ def create_interface():
         inputs=[
             gr.Audio(type="filepath", label="Upload audio or Record"),
             gr.Dropdown(choices=list(LANGUAGES.keys()), label="Source Language"),
-            gr.Dropdown(choices=list(LANGUAGES.keys()), label="Target Language"),
-            gr.Textbox(
-                label="TTS API URL", 
-                value="https://geometry-remembered-war-mj.trycloudflare.com/",
-                placeholder="Enter the TTS API URL"
-            )
+            gr.Dropdown(choices=list(LANGUAGES.keys()), label="Target Language")
         ],
         outputs=[
             gr.Textbox(label="Translation Results"),

@@ -1,11 +1,9 @@
 import requests
 import warnings
 import logging
-import random
-import time
-from typing import Optional, Dict, Any, List, Set
-from collections import defaultdict
-from .proxy_manager import get_proxy_list
+import os
+from typing import Optional, Dict, Any
+from dotenv import load_dotenv
 from .user_agent_rotator import UserAgentRotator
 from .headers_manager import HeadersManager
 from urllib3.exceptions import InsecureRequestWarning
@@ -14,29 +12,25 @@ from urllib3.exceptions import InsecureRequestWarning
 warnings.filterwarnings('ignore')
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+# Load environment variables
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 class RequestManager:
-    def __init__(self, timeout: int = 5):
+    def __init__(self, timeout: int = 70):  # Recommended 70s timeout by ScraperAPI
         """Initialize RequestManager."""
         self.timeout = timeout
         self.user_agent_rotator = UserAgentRotator()
         self.headers_manager = HeadersManager()
-        self.max_retries = 10
+        self.max_retries = 3
+        self.api_key = os.getenv('SCRAPER_API_KEY')
         
-        # Get initial proxy list
-        logger.info("Getting proxy list...")
-        self.proxy_list = get_proxy_list()
-        logger.info(f"Got {len(self.proxy_list)} working proxies")
-
-        # Keep track of working proxies for each domain
-        self.domain_proxies = defaultdict(dict)  # domain -> {proxy: last_success_time}
-        self.working_proxies: Set[str] = set()
-
-    def _get_domain(self, url: str) -> str:
-        """Extract domain from URL."""
-        from urllib.parse import urlparse
-        return urlparse(url).netloc
+        if not self.api_key:
+            raise ValueError("SCRAPER_API_KEY not found in environment variables")
+        
+        # Using proxy port approach for better session handling and IP rate limiting bypass
+        self.proxy = f"http://scraperapi:{self.api_key}@proxy-server.scraperapi.com:8001"
 
     def make_request(
         self,
@@ -45,7 +39,7 @@ class RequestManager:
         base_headers: Optional[Dict[str, str]] = None,
         **kwargs
     ) -> requests.Response:
-        """Make request with proxy rotation and retries."""
+        """Make request using Scraper API proxy port."""
         if base_headers is None:
             base_headers = {}
 
@@ -58,75 +52,38 @@ class RequestManager:
             headers['Content-Type'] = 'application/json'
 
         request_timeout = kwargs.pop('timeout', self.timeout)
-        domain = self._get_domain(url)
-
-        # Prioritize proxies:
-        # 1. Recently successful proxies for this domain
-        # 2. Generally working proxies
-        # 3. Random new proxies
-
-        proxies_to_try = []
         
-        # Add domain-specific working proxies
-        if domain in self.domain_proxies:
-            recent = sorted(
-                self.domain_proxies[domain].items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
-            proxies_to_try.extend([p[0] for p in recent])
-
-        # Add other working proxies
-        other_working = [p for p in self.working_proxies if p not in proxies_to_try]
-        if other_working:
-            proxies_to_try.extend(other_working)
-
-        # Add some random proxies if needed
-        if len(proxies_to_try) < self.max_retries:
-            remaining = self.max_retries - len(proxies_to_try)
-            available = [p for p in self.proxy_list if p not in proxies_to_try]
-            if available:
-                proxies_to_try.extend(random.sample(available, min(remaining, len(available))))
+        # Setup proxy configuration
+        proxies = {
+            'http': self.proxy,
+            'https': self.proxy
+        }
 
         errors = []
-        for proxy in proxies_to_try:
-            proxy_dict = {
-                'http': f'http://{proxy}',
-                'https': f'http://{proxy}'
-            }
-            
+        for attempt in range(self.max_retries):
             try:
-                logger.info(f"Trying proxy: {proxy}")
+                logger.info(f"Making request attempt {attempt + 1} of {self.max_retries}")
                 response = requests.request(
                     method=method,
                     url=url,
                     headers=headers,
-                    proxies=proxy_dict,
+                    proxies=proxies,
                     timeout=request_timeout,
-                    verify=False,
+                    verify=False,  # Required for proxy usage
                     **kwargs
                 )
                 response.raise_for_status()
-                logger.info(f"Request successful with proxy {proxy}")
-                
-                # Update successful proxy records
-                self.working_proxies.add(proxy)
-                self.domain_proxies[domain][proxy] = time.time()
+                logger.info("Request successful")
                 return response
 
             except Exception as e:
-                error = f"Proxy {proxy} failed: {str(e)}"
+                error = f"Request failed on attempt {attempt + 1}: {str(e)}"
                 logger.warning(error)
                 errors.append(error)
                 
-                # Remove failed proxy
-                self.working_proxies.discard(proxy)
-                if domain in self.domain_proxies:
-                    self.domain_proxies[domain].pop(proxy, None)
-
-        # If we get here, all retries failed
-        raise Exception(f"All proxies failed.\nLast {min(3, len(errors))} errors:\n" + 
-                      "\n".join(errors[-3:]))
+                if attempt == self.max_retries - 1:
+                    raise Exception(f"All retries failed.\nLast {min(3, len(errors))} errors:\n" + 
+                                 "\n".join(errors[-3:]))
 
     def get(self, url: str, **kwargs) -> requests.Response:
         """Make GET request."""
