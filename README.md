@@ -50,9 +50,105 @@ pip install -r requirements.txt
 └── requirements.txt
 ```
 
+## Web Interface
+
+The project includes a Gradio web interface that makes it easy to use the translation pipeline. You can:
+- Upload or record audio directly in the browser
+- Select source and target languages from dropdown menus
+- Configure the TTS API URL
+- Get instant results with translated text and audio
+
+### Running the Web Interface Locally
+
+```bash
+python app.py
+```
+
+The interface will be available at http://localhost:7860
+
+### Deploying to Hugging Face Spaces
+
+1. Create a new Space on Hugging Face:
+   - Go to https://huggingface.co/spaces
+   - Click "Create new Space"
+   - Choose "Gradio" as the SDK
+   - Set Python version to 3.8 or higher
+
+2. Upload the following files to your Space:
+   - `app.py`
+   - `gradio_interface.py`
+   - `audio_translation_pipeline.py`
+   - `voice_to_text.py`
+   - `translator.py`
+   - `text_to_speech.py`
+   - `requirements.txt`
+   - All files in the `src/` directory
+
+3. Configure your Space:
+   - Go to your Space's Settings > Repository Secrets
+   - Add the following secrets (optional):
+     - `TTS_API_URL`: Your default TTS API URL (if you want to override the default)
+     
+4. The Space will automatically deploy your application.
+
+5. Configure the TTS API URL:
+   - When using the interface, you can input your TTS API URL
+   - The default URL is configurable in two ways:
+     a. Through the interface directly
+     b. By setting the `TTS_API_URL` environment variable/secret
+
+## Configuration
+
+### Environment Variables
+
+The following environment variables can be configured:
+
+- `TTS_API_URL`: The URL for the Text-to-Speech API service
+  - Default: "https://geometry-remembered-war-mj.trycloudflare.com/"
+  - Can be overridden through:
+    - Environment variable
+    - Hugging Face Space secret
+    - Web interface input
+
+### Local Configuration
+
+When running locally, you can set environment variables in several ways:
+
+1. In your shell:
+```bash
+export TTS_API_URL="your-api-url"
+python app.py
+```
+
+2. Using a .env file:
+```env
+TTS_API_URL=your-api-url
+```
+
+3. Or directly through the web interface
+
+### Hugging Face Space Configuration
+
+In your Hugging Face Space:
+
+1. Go to Settings > Repository Secrets
+2. Add your secrets:
+   - Click "New Secret"
+   - Name: TTS_API_URL
+   - Value: Your API URL
+
+This configuration will be automatically loaded when your Space starts.
+
 ## Usage
 
-1. Place your audio file in the project directory or specify its path.
+1. Using the Web Interface (Recommended):
+   - Open the application in your browser
+   - Upload or record an audio file
+   - Select source and target languages
+   - Enter your TTS API URL
+   - Click submit to process the audio
+
+2. Using the Python API:
 
 2. Use the pipeline in your Python code:
 
