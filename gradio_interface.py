@@ -3,29 +3,21 @@ import logging
 import os
 from audio_translation_pipeline import AudioTranslationPipeline
 
-# Configure logging - suppress all but critical errors
-logging.basicConfig(
-    level=logging.ERROR,
-    format='%(message)s'
-)
+logging.basicConfig(level=logging.ERROR, format='%(message)s')
 logger = logging.getLogger(__name__)
-
-# Suppress all loggers except critical errors
 for name in logging.root.manager.loggerDict:
     logging.getLogger(name).setLevel(logging.ERROR)
 
-# Initialize pipeline
 pipeline = AudioTranslationPipeline()
 
-# Define available languages with native names
 LANGUAGES = {
-    "Kannada (ಕನ್ನಡ)": "kn",
     "Hindi (हिन्दी)": "hi",
     "English": "en",
+    "Bengali (বাংলা)": "bn",
     "Telugu (తెలుగు)": "te",
     "Tamil (தமிழ்)": "ta",
     "Marathi (मराठी)": "mr",
-    "Bengali (বাংলা)": "bn",
+    "Kannada (ಕನ್ನಡ)": "kn",
     "Gujarati (ગુજરાતી)": "gu",
     "Malayalam (മലയാളം)": "ml",
     "Punjabi (ਪੰਜਾਬੀ)": "pa"
@@ -34,117 +26,72 @@ LANGUAGES = {
 def process_audio(audio_path, source_lang, target_lang):
     try:
         if audio_path is None:
-            return "Please provide an audio input.", None
+            return "Please upload or record audio to translate.", None
             
-        # Display processing message
-        gr.Info("Processing audio...")
-            
-        # Process the audio file
+        gr.Info("Processing your audio...")
         result = pipeline.process(
             audio_file_path=audio_path,
             source_lang=LANGUAGES[source_lang],
             target_lang=LANGUAGES[target_lang]
         )
         
-        output_text = f"""
-Original Text ({source_lang}): {result['original_text']}
-
-Translated Text ({target_lang}): {result['translated_text']}
-"""
+        output_text = f"Original ({source_lang}):\n{result['original_text']}\n\nTranslation ({target_lang}):\n{result['translated_text']}"
         return output_text, result['audio_path']
         
     except Exception as e:
         error_msg = str(e)
         if "All proxies failed" in error_msg:
-            return "Service temporarily unavailable. Please try again in a few moments.", None
+            return "Service is busy. Please try again in a moment.", None
         return f"Error: {error_msg}", None
 
 def create_interface():
-    # CSS for custom styling
-    css = """
-    .gradio-container {
-        font-family: 'Arial', sans-serif;
-    }
-    h1 {
-        color: #B22025 !important;  /* Traditional Indian Red */
-        text-align: center !important;
-        font-size: 2.5em !important;
-        margin-bottom: 0.2em !important;
-    }
-    .subtitle {
-        color: #666 !important;
-        text-align: center !important;
-        font-size: 1.2em !important;
-        margin-bottom: 2em !important;
-    }
-    .features {
-        background: #FFF9E6;  /* Light warm background */
-        padding: 20px;
-        border-radius: 10px;
-        margin: 20px 0;
-    }
-    .disclaimer {
-        text-align: center;
-        font-size: 0.9em;
-        color: #666;
-        border-top: 1px solid #ddd;
-        padding-top: 20px;
-        margin-top: 40px;
-    }
-    button.primary {
-        background: #B22025 !important;
-        border: none !important;
-    }
-    button.primary:hover {
-        background: #8B1821 !important;
-    }
-    """
-    
-    theme = gr.themes.Soft(
-        primary_hue="red",
-        secondary_hue="orange",
-        font=["Arial", "sans-serif"]
-    )
-    
-    with gr.Blocks(css=css, theme=theme) as interface:
+    with gr.Blocks() as interface:
         gr.Markdown("# ವಾಙ್ಮಯ (Vangmaya)")
-        gr.Markdown("#### Your Voice, Any Indian Language", elem_classes="subtitle")
+        gr.Markdown("""
+        ### Breaking Language Barriers, Keeping Your Identity
+        
+        Experience the future of voice translation. ವಾಙ್ಮಯ uniquely preserves your voice while translating 
+        your speech into any Indian language. Built on AI4Bharat's groundbreaking voice cloning technology, 
+        it ensures your message reaches millions while staying authentically you.
+        """)
         
         with gr.Row():
             with gr.Column():
                 audio_input = gr.Audio(
                     type="filepath",
-                    label="🎙️ Upload or Record Audio",
-                    elem_classes="audio-input"
+                    label="Upload or Record Audio"
                 )
-                source_lang = gr.Dropdown(
-                    choices=list(LANGUAGES.keys()),
-                    value="English",  # Default source language
-                    label="Source Language"
-                )
-                target_lang = gr.Dropdown(
-                    choices=list(LANGUAGES.keys()),
-                    value="Hindi (हिन्दी)",  # Default target language
-                    label="Target Language"
-                )
-                process_btn = gr.Button("🔄 Translate", variant="primary")
+                with gr.Row():
+                    source_lang = gr.Dropdown(
+                        choices=list(LANGUAGES.keys()),
+                        value="English",
+                        label="From"
+                    )
+                    target_lang = gr.Dropdown(
+                        choices=list(LANGUAGES.keys()),
+                        value="Hindi (हिन्दी)",
+                        label="To"
+                    )
+                process_btn = gr.Button("Translate")
 
             with gr.Column():
-                text_output = gr.Textbox(label="Translation Results")
-                audio_output = gr.Audio(label="Translated Audio")
-        
-        # Description and features
+                text_output = gr.Textbox(
+                    label="Translation Results",
+                    lines=4
+                )
+                audio_output = gr.Audio(
+                    label="Translated Audio"
+                )
+                
         gr.Markdown("""
-        ### ✨ Features
-        - 🗣️ Translate speech while preserving your voice
-        - 🔤 Support for 10 major Indian languages
-        - 🎯 AI-powered voice cloning
-        - ⚡ Fast and efficient processing
-        
-        Simply speak in your language, and Vangmaya will transform it while keeping your voice intact!
+        ---
+        #### How is it revolutionary?
+        - First system to maintain speaker identity across Indian languages
+        - Zero-shot voice cloning - works instantly with any voice
+        - State-of-the-art neural speech synthesis from IIT Madras
+        - Preserves emotion and speaking style during translation
         """)
-        
-        # Add processing function
+
         process_btn.click(
             fn=process_audio,
             inputs=[audio_input, source_lang, target_lang],
@@ -153,14 +100,14 @@ def create_interface():
         
         gr.Markdown("""
         ---
-        Powered by state-of-the-art AI technology from AI4Bharat (IIT Madras).  
-        Note: ವಾಙ್ಮಯ (Vangmaya) means "speech" or "verbal expression" in Sanskrit.
-        """, elem_classes="disclaimer")
+        *Breaking the language barrier across 1.4 billion Indian voices, one conversation at a time.  
+        A project by AI4Bharat, fostering communication in a linguistically diverse India.*
+        """)
+
     return interface
 
 if __name__ == "__main__":
     interface = create_interface()
-    # Launch with queue enabled
     interface.queue().launch(
         share=True,
         debug=True,
