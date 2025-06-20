@@ -6,4 +6,4 @@ load_dotenv()
 
 # Create and launch the interface
 demo = create_interface()
-demo.launch(server_name="0.0.0.0")
+demo.launch()
