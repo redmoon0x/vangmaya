@@ -1,0 +1,6 @@
+modal==0.54.4
+torch==2.7.1
+transformers>=4.30.0
+accelerate>=0.20.0
+sentencepiece>=0.1.99
+safetensors>=0.3.1

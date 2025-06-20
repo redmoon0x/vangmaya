@@ -15,7 +15,7 @@ for name in logging.root.manager.loggerDict:
     logging.getLogger(name).setLevel(logging.ERROR)
 
 # Set the TTS API URL
-os.environ['TTS_API_URL'] = "https://covers-friendly-precious-none.trycloudflare.com"
+os.environ['TTS_API_URL'] = "https://geometry-remembered-war-mj.trycloudflare.com/"
 
 # Initialize pipeline
 pipeline = AudioTranslationPipeline()
