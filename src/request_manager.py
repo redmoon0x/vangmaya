@@ -2,7 +2,9 @@ import requests
 import warnings
 import logging
 import random
+import time
 from typing import Optional, Dict, Any, List, Set
+from collections import defaultdict
 from .proxy_manager import get_proxy_list
 from .user_agent_rotator import UserAgentRotator
 from .headers_manager import HeadersManager
@@ -27,8 +29,14 @@ class RequestManager:
         self.proxy_list = get_proxy_list()
         logger.info(f"Got {len(self.proxy_list)} working proxies")
 
-        # Keep track of working proxies
+        # Keep track of working proxies for each domain
+        self.domain_proxies = defaultdict(dict)  # domain -> {proxy: last_success_time}
         self.working_proxies: Set[str] = set()
+
+    def _get_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        from urllib.parse import urlparse
+        return urlparse(url).netloc
 
     def make_request(
         self,
@@ -49,15 +57,34 @@ class RequestManager:
         if method.upper() == 'POST':
             headers['Content-Type'] = 'application/json'
 
-        # Get request timeout
         request_timeout = kwargs.pop('timeout', self.timeout)
+        domain = self._get_domain(url)
 
-        # Try working proxies first
-        proxies_to_try = list(self.working_proxies)
+        # Prioritize proxies:
+        # 1. Recently successful proxies for this domain
+        # 2. Generally working proxies
+        # 3. Random new proxies
+
+        proxies_to_try = []
+        
+        # Add domain-specific working proxies
+        if domain in self.domain_proxies:
+            recent = sorted(
+                self.domain_proxies[domain].items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            proxies_to_try.extend([p[0] for p in recent])
+
+        # Add other working proxies
+        other_working = [p for p in self.working_proxies if p not in proxies_to_try]
+        if other_working:
+            proxies_to_try.extend(other_working)
+
+        # Add some random proxies if needed
         if len(proxies_to_try) < self.max_retries:
-            # Add some new proxies to try
             remaining = self.max_retries - len(proxies_to_try)
-            available = [p for p in self.proxy_list if p not in self.working_proxies]
+            available = [p for p in self.proxy_list if p not in proxies_to_try]
             if available:
                 proxies_to_try.extend(random.sample(available, min(remaining, len(available))))
 
@@ -82,8 +109,9 @@ class RequestManager:
                 response.raise_for_status()
                 logger.info(f"Request successful with proxy {proxy}")
                 
-                # Remember this working proxy
+                # Update successful proxy records
                 self.working_proxies.add(proxy)
+                self.domain_proxies[domain][proxy] = time.time()
                 return response
 
             except Exception as e:
@@ -91,8 +119,10 @@ class RequestManager:
                 logger.warning(error)
                 errors.append(error)
                 
-                # Remove failed proxy from working set
+                # Remove failed proxy
                 self.working_proxies.discard(proxy)
+                if domain in self.domain_proxies:
+                    self.domain_proxies[domain].pop(proxy, None)
 
         # If we get here, all retries failed
         raise Exception(f"All proxies failed.\nLast {min(3, len(errors))} errors:\n" + 
